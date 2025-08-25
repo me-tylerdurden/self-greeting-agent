@@ -1,15 +1,12 @@
 #!/Users/saurabhsingh/.venvs/startup_agent/bin/python
-#!/Users/saurabhsingh/.venvs/startup_agent/bin/python
-
 """
 Startup CodeLlama Agent - Greets you when laptop starts.
-Designed to run at login via launchd. Uses a venv python if your plist points to it.
+Designed to run at login via launchd. Uses your venv Python as set in the shebang.
 """
 
 # --- Debug: log which Python is running (add BEFORE other imports) ---
 import sys
 import datetime
-import os
 import pathlib
 
 LOG_DIR = pathlib.Path("/Users/saurabhsingh/Library/Logs")
@@ -34,7 +31,6 @@ class StartupAgent:
     def __init__(self):
         self.model = "codellama"
         self.base_url = "http://localhost:11434/api/generate"
-        # Full path to Ollama binary (GUI app bundle resource)
         self.ollama_bin = "/Applications/Ollama.app/Contents/Resources/ollama"
 
     # ---------- logging helpers ----------
@@ -71,7 +67,6 @@ class StartupAgent:
         """
         if not self.check_ollama_running():
             try:
-                # Start Ollama server (detached, quiet)
                 subprocess.Popen(
                     [self.ollama_bin, "serve"],
                     stdout=subprocess.DEVNULL,
@@ -117,7 +112,7 @@ class StartupAgent:
             self.start_ollama_if_needed()
             if self.check_ollama_running():
                 prompt = (
-                    "Write one short greeting (<=25 words) for a programmer named "
+                    "Write one short greeting (<=20 words) for a programmer named "
                     "Saurabh who just started their laptop. It must mention coding and "
                     f"the time of day: {tg.lower()}. Keep it crisp."
                 )
@@ -126,17 +121,18 @@ class StartupAgent:
                     "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "temperature": 0.6,
-                        "max_tokens": 50,
+                        "temperature": 0.6,   # balanced creativity
+                        "max_tokens": 40      # ~<=20 words
                     },
                 }
                 self.log("Requesting greeting from Ollama...")
                 r = requests.post(self.base_url, json=payload, timeout=20)
                 if r.status_code == 200:
                     text = r.json().get("response", "").strip()
-                    # Guard: if the model returns long text, trim to first line
-                    if len(text.split()) > 25:
-                        text = text.split("\n")[0]
+                    # safety trims
+                    text = text.replace("\n", " ").strip()
+                    if len(text.split()) > 20:
+                        text = " ".join(text.split()[:20])
                     self.log("Got greeting from Ollama.")
                     return text or random.choice(prompts)
                 else:
@@ -179,12 +175,17 @@ class StartupAgent:
     def show_notification(self):
         """Prefer this for launchd at login (more reliable than Tkinter)."""
         greeting = self.get_greeting()
+
+        # Sanitize for AppleScript: escape backslashes and quotes, and flatten newlines
+        safe = (
+            greeting.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("\n", " ")
+        )
+
         self.log(f"Greeting text: {greeting}")
         try:
-            script = (
-                f'display notification "{greeting}" '
-                f'with title "🤖 CodeLlama Agent" sound name "Glass"'
-            )
+            script = f'display notification "{safe}" with title "🤖 CodeLlama Agent" sound name "Glass"'
             subprocess.run(["osascript", "-e", script], check=False)
             self.log("Displayed macOS notification.")
         except Exception as e:
