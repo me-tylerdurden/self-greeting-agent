@@ -173,34 +173,55 @@ class StartupAgent:
         print(bar)
 
     def show_notification(self):
-        """Prefer this for launchd at login (more reliable than Tkinter)."""
+        """Prefer this for launchd at login; try terminal-notifier first, fallback to osascript."""
         greeting = self.get_greeting()
-
-        # Sanitize for AppleScript: escape backslashes and quotes, and flatten newlines
-        safe = (
-            greeting.replace("\\", "\\\\")
-            .replace('"', '\\"')
-            .replace("\n", " ")
-        )
-
         self.log(f"Greeting text: {greeting}")
+
+        # sanitize text for both tools
+        safe = (greeting.replace("\\", "\\\\")
+                    .replace('"', '\\"')
+                    .replace("\n", " "))
+
+        # 1) Try terminal-notifier (clear app name, very reliable)
+        try:
+            ret = subprocess.run(
+                 ["terminal-notifier",
+                  "-title", "🤖 CodeLlama Agent",
+                  "-subtitle", "Self Greeting Agent",
+                  "-message", safe],
+                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+            if ret.returncode == 0:
+                self.log("Displayed macOS notification via terminal-notifier.")
+                return
+        except Exception as e:
+            self.log(f"terminal-notifier not available: {e}")
+
+        # 2) Fallback to AppleScript
         try:
             script = f'display notification "{safe}" with title "🤖 CodeLlama Agent" sound name "Glass"'
             subprocess.run(["osascript", "-e", script], check=False)
-            self.log("Displayed macOS notification.")
+            self.log("Displayed macOS notification via osascript.")
         except Exception as e:
             self.log_err(f"Notification failed: {e}")
-            # Fallback to terminal if notification fails
             self.show_terminal_greeting()
 
 
 def main():
+    import sys
     agent = StartupAgent()
-    # For launchd login runs, notifications are the most reliable:
-    agent.show_notification()
-    # For manual testing, you can swap to:
-    # agent.show_popup_greeting()
-    # agent.show_terminal_greeting()
+
+    # Force notification if flag is passed
+    if "--notify" in sys.argv:
+        agent.show_notification()
+        return
+
+    # If running in a terminal interactively, print to terminal
+    if sys.stdout.isatty():
+        agent.show_terminal_greeting()
+    else:
+        # When run by launchd (no TTY), show a notification
+        agent.show_notification()
 
 
 if __name__ == "__main__":
