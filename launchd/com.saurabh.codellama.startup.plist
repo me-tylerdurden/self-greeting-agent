@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.saurabh.codellama.startup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/YOURUSERNAME/.venvs/startup_agent/bin/python</string>
+    <string>/Users/YOURUSERNAME/self-greeting-agent/startup_agent.py</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>LimitLoadToSessionType</key>
+  <string>Aqua</string>
+</dict>
+</plist>
+

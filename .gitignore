@@ -1,0 +1,16 @@
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+env/
+*.egg-info/
+
+# Logs
+*.log
+
+# macOS system files
+.DS_Store
+
